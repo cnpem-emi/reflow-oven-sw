@@ -1,40 +1,44 @@
 from datetime import datetime 
+from serial import Serial
 from matplotlib.animation import FuncAnimation
 from itertools import count
 from matplotlib.axis import YAxis 
-from serial import Serial
 from tkinter.filedialog import askdirectory
+from MBTempCoef import MBTemp
+from tkinter import *
+from AniButon import AniButon
 import time
 import matplotlib.pyplot as plt 
-import serial 
 import random
 import numpy as np
 import csv
-from MBTempCoef import MBTemp
-from tkinter import *
 
-def Animate(*args):
-    value_temp = column2_temp[0]
-    list_inf = int(len(total_ports) - 1) 
-    inf = 0
-    if not (column1_time[-1] == "time") and float(column1_time[-1]) >= read_duration : 
-        pause = False
+button_pressed = False
+
+def stop(event=None):
+    global button_pressed
+    button_pressed = True
+
+def update(i):
+    ax.clear()
+    for x in range (len(column2_temp)):
+        time.sleep(time_sec)      
+        column2_temp[x].append(float(mb.ReadTemp(x)))
+
+    column1_time.append(time.time() - start_time)
+    
+    for z in range (len(column2_temp)):
+        ax.plot(column1_time[1:], column2_temp[z][1:], label = 'temp {}'.format(z))
+        print(column2_temp[z][-1], 'temp {}'.format(z), '\n')
+
+    print(button_pressed)
+
+    if (not (column1_time[-1] == "time") and float(column1_time[-1]) >= read_duration) or button_pressed :
         ax.clear()
+        name = path + file_name+'.csv'
         save_csv_file(column1_time, column2_temp)
-    else:
-        ax.clear()
-        ax.set_yscale("log")
-        plt.ylabel('Temperature [°C]')
-        plt.xlabel('Time [sec]')
-        list_inf = [0]
-        column1_time.append((time.time() - start_time))
-        for x in range (len(column2_temp)):
-            time.sleep(time_sec)       
-            column2_temp[x].append(float(mb.ReadTemp(x)))
-        for z in range (len(column2_temp)):
-            ax.plot(column1_time[1:], column2_temp[z][1:], label = 'temp {}'.format(z))
-        plt.legend()
-        plt.grid()
+        plot_graph(column1_time, column2_temp, name) 
+        end()
 
 def save_csv_file(column1_time, column2_temp):
     name = path + file_name+'.csv'
@@ -45,9 +49,6 @@ def save_csv_file(column1_time, column2_temp):
             a += f"{column1_time[index]},{','.join(str(column2_temp[i][index]) for i in range(len(column2_temp)))}\n"
         f.write(a)
         f.close()
-    plot_graph(column1_time, column2_temp, name) 
-    time.sleep(time_sec)
-    return "Graph file named '{}' saved successfully!".format(name)
 
 def plot_graph(column1_time, column2_temp, name):
     fig, ax = plt.subplots(1, 1, figsize=(20, 10))
@@ -62,7 +63,7 @@ def plot_graph(column1_time, column2_temp, name):
     plt.grid()
     plt.savefig(name+'.jpg')
     plt.close()
-    end()
+    #end()
 
 def end ():
     print('Acsition save as sucefull')
@@ -95,7 +96,7 @@ if __name__ == '__main__':
         column2_temp.append(['temperature%d'%i])  
     time_sec = 0.3
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-    ani = FuncAnimation(fig=fig, func=Animate, interval=100, repeat = True)
+    ani = AniButon(fig, update, stop)
     start_time = time.time() 
     plt.show()
-    Animate ()
+    #Animate ()
