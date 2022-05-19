@@ -87,6 +87,7 @@ if __name__ == '__main__':
         print(ports_conected)
     column1_time = ['time']
     column2_temp = []
+    
     print('Setep 3 - Insert folder location and name file')
     path = (askdirectory(title='Select Folder')+'/')
     file_name = input('Insert file name:')
