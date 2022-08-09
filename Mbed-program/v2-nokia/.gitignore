@@ -1,0 +1,13 @@
+.build
+.mbed
+projectfiles
+*.py*
+mbed-os
+BUILD
+
+compile_commands.json
+.clangd
+.cache
+Adafruit_GFX
+Adafruit_PCD8544_MBED
+NOKIA_5110
