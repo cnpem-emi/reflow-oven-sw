@@ -1,2 +1,0 @@
-max 6675 - https://os.mbed.com/users/tecnosys/code/max6675/
-nokia 51110 - https://os.mbed.com/users/Fuzball/code/NOKIA_5110/
