@@ -59,13 +59,21 @@ def end ():
     exit()
 
 def MbedTemp():
-    connection.write("1".encode('utf-8'))
-    value = connection.read(6).decode('utf8')
-    print(value)
+    time_loop = 1 
+    while (time_loop == 1):
+        connection.write("1".encode('utf-8'))
+        value = connection.read(6).decode('utf8')
+        if (value == ''):
+            time_loop = 1
+            value = ()
+        else:
+         time_loop = 0 
+    print (value)
     return (float(value))
 
 if __name__ == '__main__':
-    connection = Serial("COM4", 9600, write_timeout=0.2, timeout=0.2)
+    time_loop = 1
+    connection = Serial("COM5", 9600, write_timeout=0.2, timeout=0.2)
         
     print('Step 1 - Starting...')
 
