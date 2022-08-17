@@ -4,9 +4,7 @@ from matplotlib.animation import FuncAnimation
 from itertools import count
 from matplotlib.axis import YAxis 
 from tkinter.filedialog import askdirectory
-from MBTempCoef import MBed as mb
 from tkinter import *
-from AniButon import AniButon
 import time
 import matplotlib.pyplot as plt 
 import random
@@ -61,9 +59,9 @@ def end ():
     exit()
 
 def MbedTemp():
-    print("estou aqui")
     connection.write("1".encode('utf-8'))
     value = connection.read(6).decode('utf8')
+    print(value)
     return (float(value))
 
 if __name__ == '__main__':
