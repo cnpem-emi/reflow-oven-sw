@@ -25,6 +25,9 @@ int menu;
 int temp_function;
 float pwm_value;
 int command_pc;
+float temp_n; // new acquisition temperature 
+float temp_o; // old aquisition temperature 
+float temp_d; // temperature variation
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -59,13 +62,17 @@ int read_temperature(int a) {
     pwm1.write(pwm_value);
     
     //read temperature
-    temp = max_spi.read_temp();
-    snprintf(test, 20, "Temperature: %.2f\n", temp);
+    temp_n = max_spi.read_temp();
+    temp_d = temp_n - temp_o;
+    if (temp_d < 0) {
+        temp_d = -temp_d;
+    }  
+    snprintf(test, 20, "Temp.: %.2f\n", temp_n);
 
     //pc serial command 
     pc.read(buff, 1);
 
-    if (buff[0] == '1') {
+    if ((buff[0] == '1') && (temp_d <= 5) && (temp_n != 0)) {
       pc.write(test, 20);
     } else {
       pc.write("no commands!\n", 14);
@@ -86,7 +93,9 @@ int read_temperature(int a) {
     // for(int j = 0; j < 6;j++){
     //     myLcd.SendDrawData(arrow[j]);
     // }
+    temp_o = temp_n;
     pc.sync();
+    
     wait_us(1000000);
   }
 }
