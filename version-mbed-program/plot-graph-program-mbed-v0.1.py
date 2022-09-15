@@ -60,10 +60,9 @@ def end ():
     exit()
 
 def MbedTemp():
-    while value == '' or value == ' ':
-        connection.write("1".encode('utf-8'))
-        value = connection.read(20).decode('utf8')
-    return (float(value.split(';')[0]), float(value.split(';')[1][:-1]))
+    connection.write("1".encode('utf-8'))
+    value = connection.read(20).decode('utf8').replace('\x00','')
+    return (float(value.split(';')[0]), float(value.split(';')[1]))
         
 
 if __name__ == '__main__':
