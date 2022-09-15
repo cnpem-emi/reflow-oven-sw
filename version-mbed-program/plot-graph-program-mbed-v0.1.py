@@ -12,12 +12,13 @@ import numpy as np
 import csv
 
 def update(x):
+    mbed_value = ()
     while (x==1):
         value = ''
         time.sleep(time_sec)   
-        column2_temp.append(MbedTemp())
-        
-        print (column2_temp)
+        mbed_value = MbedTemp()
+        column2_temp.append(mbed_value[0])
+        column3_Pwm.append(mbed_value[1])
 
         column1_time.append(time.time() - start_time)
         
@@ -36,7 +37,7 @@ def save_csv_file(column1_time, column2_temp):
     with open(name , 'w') as f: 
         a = ''
         for index in range(len(column1_time)):
-            a += f"{column1_time[index]},{(str(column2_temp[index]) )}\n"
+            a += f"{column1_time[index]},{column3_Pwm[index]},{(str(column2_temp[index]))}\n"
         f.write(a)
         f.close()
 
@@ -59,10 +60,10 @@ def end ():
     exit()
 
 def MbedTemp():
-    while value == '':
+    while value == '' or value == ' ':
         connection.write("1".encode('utf-8'))
         value = connection.read(20).decode('utf8')
-    return (float(value.split(" ")[1][:-1]))
+    return (float(value.split(';')[0]), float(value.split(';')[1][:-1]))
         
 
 if __name__ == '__main__':
@@ -75,6 +76,8 @@ if __name__ == '__main__':
     read_duration = int(input('Duration time test:'))
     column1_time = []
     column2_temp = []
+    column3_Pwm = []
+    mbed_value = ()
     value = ''
     
     print('Setep 3 - Insert folder location and name file')
