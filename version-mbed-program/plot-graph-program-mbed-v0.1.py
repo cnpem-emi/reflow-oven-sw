@@ -1,4 +1,5 @@
-from datetime import datetime 
+from datetime import datetime
+from logging import exception 
 from serial import Serial
 from matplotlib.animation import FuncAnimation
 from itertools import count
@@ -60,9 +61,13 @@ def end ():
     exit()
 
 def MbedTemp():
-    connection.write("1".encode('utf-8'))
-    value = connection.read(20).decode('utf8').replace('\x00','')
-    return (float(value.split(';')[0]), float(value.split(';')[1]))
+    try:
+        connection.reset_input_buffer()
+        connection.write("1".encode('utf-8'))
+        value = connection.read(12).decode('utf8').replace('\x00','')
+        return (float(value.split(';')[0]), float(value.split(';')[1]))
+    except Exception:
+        return MbedTemp()
         
 
 if __name__ == '__main__':
