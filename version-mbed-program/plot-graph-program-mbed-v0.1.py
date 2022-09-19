@@ -21,6 +21,8 @@ def update(x):
         column2_temp.append(mbed_value[0])
         column3_Pwm.append(mbed_value[1])
 
+        print (str(mbed_value[0]), '°C ; ', str(mbed_value[1]), '\n')
+
         column1_time.append(time.time() - start_time)
         
         
@@ -32,6 +34,7 @@ def update(x):
             save_csv_file(column1_time, column2_temp)
             plot_graph(column1_time, column2_temp, name) 
             end()
+        save_csv_file(column1_time, column2_temp)
 
 def save_csv_file(column1_time, column2_temp):
     name = path + file_name+'.csv'
@@ -71,7 +74,7 @@ def MbedTemp():
         
 
 if __name__ == '__main__':
-    connection = Serial("COM4", 9600, write_timeout=0.2, timeout=0.2)
+    connection = Serial("COM5", 9600, write_timeout=0.2, timeout=0.2)
         
     print('Step 1 - Starting...')
 
