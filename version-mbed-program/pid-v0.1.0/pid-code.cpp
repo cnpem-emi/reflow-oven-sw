@@ -8,10 +8,14 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // pins definition
-AnalogIn pot1(p20);              // pin in potentiometer
-PwmOut pwm1(p21);        // pin out PWM AC
-PwmOut pwm2(p22);        // pin out PWM paramter
-DigitalIn pwm2_out(p23);    // pin in PWM paramter
+AnalogIn pot1(p20); // pin in potentiometer
+PwmOut pwm1(p21);   // pin out PWM AC
+PwmOut pwm2(p22);   // pin out PWM paramter
+DigitalOut led1(LED1);
+DigitalOut led2(LED2);
+DigitalOut led4(LED4);
+PwmOut led3(LED3);
+InterruptIn pwm2_out(p23);       // pin in PWM paramter
 DigitalIn pb1_left(p26);         // push botton left
 DigitalIn pb2_mid(p29);          // push botton
 DigitalIn pb3_right(p30);        // push botton
@@ -43,13 +47,17 @@ float PID_i;                          // integral
 float PID_d;                          // derivated
 PID controller(0.4, 550.0, 8.0, 0.8); // variables PID controller
 float set_pid;
+int change_info;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // characters to write lcd
 const char arrow[5] = {0x41, 0x22, 0x14, 0x08, 0x00}; // simbole: >
+void auto_control1(void);
+void auto_control(void);
 
-// Chose set point paramters
+void extracted() { return; }
+
 void Set_pid() {
   if (temp_n >= 150) {
     set_pid = 190;
@@ -58,22 +66,20 @@ void Set_pid() {
   if (temp_n >= 190) {
     set_pid = 230;
     controller.setSetPoint(set_pid);
-  } else
-    return;
+  }
 }
 
 int read_temperature(int a) {
   char *test = (char *)malloc(20);
-  char *msg_pc = (char *)calloc(12, 1);
+  char *msg_pc = (char *)calloc(13, 1);
   char *buff = (char *)malloc(3);
   snprintf(test, 20, "test 2");
   pc.set_blocking(false);
-  pwm_value = 0;
 
   // PID set paramters
   set_pid = 230;
   controller.setInputLimits(0.0, 360.0);
-  controller.setOutputLimits(0.0, 1.0);
+  controller.setOutputLimits(0.00, 1.00);
   controller.setMode(1);
   controller.setSetPoint(set_pid);
   controller.setTunings(15, 0, 0);
@@ -91,55 +97,82 @@ int read_temperature(int a) {
   NokiaLcd myLcd(myPins);
   myLcd.InitLcd();
   myLcd.ClearLcdMem();
+  
   variable = 0;
+  led2 = 0; 
+
+  //pc.write("To view Temperature - Press key: 1", 36);
+
+  // Interrupt to  pwm adjuste
+  pwm2_out.fall(auto_control);
 
   // Draw a test pattern on the LCD and stall for 15 seconds
   while (1) {
-    // read temperature
-    temp_n = max_spi.read_temp();
-    temp_d = temp_n - temp_o;
-    controller.setProcessValue(temp_n);
-
-    if (temp_d < 0) {
-      temp_d = -temp_d;
-    }
-    snprintf(msg_pc, 12, "%03.2f;%01.2f", temp_n, pwm_value);
-
-    // pc serial command
+    // Read mensage of pc serial command
     pc.read(buff, 1);
 
+    // Print temperature
+    snprintf(test, 20, "\nTemp.: %.2f\n", temp_n);
+    pc.write("2\n",3);
+
     if ((temp_d <= 5) && (temp_n != 0)) {
-      if (buff[0] == '1') {
-        pc.write(msg_pc, 20);
-      }
-    } else {
-      pc.write("no commands!\n", 14);
+      snprintf(test, 20, "Temp.: %.2f", temp_n);
+      myLcd.SetXY(0, 0);
+      myLcd.DrawString(test);
+      snprintf(test, 20, "PWM: %.2f", pwm_value);
+      myLcd.SetXY(0, 3);
+      myLcd.DrawString(test);
+      pc.write("3\n",3);
     }
 
-    pwm_value = controller.compute();
-    pwm1.write(pwm_value);
-
-    snprintf(test, 20, "Temp.: %.2f\n", temp_n);
-
-    myLcd.SetXY(0, 0);
-    myLcd.DrawString(test);
-
-    snprintf(test, 20, "pwm: %.2f", pwm_value);
-    myLcd.SetXY(0, 3);
-    myLcd.DrawString(test);
-    // for(int j = 0; j < 6;j++){
-    //     myLcd.SendDrawData(arrow[j]);
-    // }
-    temp_o = temp_n;
-    pc.sync();
-    wait_us(500000);
+    if (change_info == 1) {
+      led2 =  1; 
+      temp_n = max_spi.read_temp();
+      temp_d = temp_n - temp_o;
+      pc.write("5\n",3);
+      if (temp_d < 0) {
+        temp_d = -temp_d;
+      }
+      if ((temp_d <= 5) && (temp_n != 0)) {
+        controller.setProcessValue(temp_n);
+        pwm_value = controller.compute();
+        pwm1.write(pwm_value);
+        if (buff[0] == '5') {
+          snprintf(msg_pc, 13, "%03.2f;%01.2f", temp_n, pwm_value);
+          wait_us(10000);
+          pc.write(msg_pc, 13);
+          
+        }
+        
+        if (buff[0] == '1') {
+            snprintf(msg_pc, 13, "\nTemp.: %03.2f", temp_n);
+            pc.write(msg_pc, 13);
+            wait_us(10000);
+            snprintf(msg_pc, 12, "\nPWM: %01.2f", pwm_value);
+            pc.write(msg_pc, 12);
+            wait_us(10000);
+      }
+      led2 =  0; 
+      }
+      temp_o = temp_n;
+      change_info = 0;
+    }
+  pc.sync();
   }
+  // for(int j = 0; j < 6;j++){
+  //     myLcd.SendDrawData(arrow[j]);
+  // }
+  // pc.write ("e\n", 3);
+}
+
+void auto_control(void) {
+  change_info = 1;
 }
 
 int main() {
   char *test = (char *)malloc(16);
   snprintf(test, 16, "test 2");
-  
+
   // Init the data structures and NokiaLcd class
   LcdPins myPins;
   myPins.sce = p8;
@@ -156,6 +189,16 @@ int main() {
   // pwm start in 0%
   pwm1.write(0);
   pwm1.period(1.67f);
+  pwm2.period(1.67f);
+  pwm2.write(0.75);
+  led3.period(1.67f);
+  led3.write(0.75);
+
+  pwm_value = 0;
+  temp_n = 0;
+  temp_o = 0;
+  change_info = 0;
+
   while (1) {
     snprintf(test, 16, "Waiting press button");
     myLcd.ClearLcdMem();
