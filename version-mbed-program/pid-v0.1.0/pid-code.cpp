@@ -41,11 +41,12 @@ float temp_set;   // set temp variable to PID
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // controller variables
+const float pwm_period = 1.0f/0.60f;
 float PID_value;
 float PID_p;                          // proportional
 float PID_i;                          // integral
 float PID_d;                          // derivated
-PID controller(0.4, 550.0, 8.0, 0.8); // variables PID controller
+PID controller(0.4, 550.0, 8.0, pwm_period); // variables PID controller
 float set_pid;
 int change_info;
 
@@ -81,7 +82,7 @@ int read_temperature(int a) {
   controller.setInputLimits(0.0, 360.0);
   controller.setOutputLimits(0.00, 1.00);
   controller.setMode(1);
-  controller.setSetPoint(set_pid);
+  controller.setSetPoint(150);
   controller.setTunings(15, 0, 0);
 
   // Init the data structures and NokiaLcd class
@@ -113,7 +114,6 @@ int read_temperature(int a) {
 
     // Print temperature
     snprintf(test, 20, "\nTemp.: %.2f\n", temp_n);
-    pc.write("2\n",3);
 
     if ((temp_d <= 5) && (temp_n != 0)) {
       snprintf(test, 20, "Temp.: %.2f", temp_n);
@@ -122,18 +122,17 @@ int read_temperature(int a) {
       snprintf(test, 20, "PWM: %.2f", pwm_value);
       myLcd.SetXY(0, 3);
       myLcd.DrawString(test);
-      pc.write("3\n",3);
     }
 
     if (change_info == 1) {
       led2 =  1; 
       temp_n = max_spi.read_temp();
       temp_d = temp_n - temp_o;
-      pc.write("5\n",3);
       if (temp_d < 0) {
         temp_d = -temp_d;
       }
       if ((temp_d <= 5) && (temp_n != 0)) {
+        Set_pid(); 
         controller.setProcessValue(temp_n);
         pwm_value = controller.compute();
         pwm1.write(pwm_value);
@@ -188,10 +187,10 @@ int main() {
 
   // pwm start in 0%
   pwm1.write(0);
-  pwm1.period(1.67f);
-  pwm2.period(1.67f);
+  pwm1.period(pwm_period);
+  pwm2.period(pwm_period);
   pwm2.write(0.75);
-  led3.period(1.67f);
+  led3.period(pwm_period);
   led3.write(0.75);
 
   pwm_value = 0;
