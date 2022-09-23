@@ -66,7 +66,7 @@ def end ():
 def MbedTemp():
     try:
         connection.reset_input_buffer()
-        connection.write("1".encode('utf-8'))
+        connection.write("5".encode('utf-8'))
         value = connection.read(12).decode('utf8').replace('\x00','')
         return (float(value.split(';')[0]), float(value.split(';')[1]))
     except Exception:
