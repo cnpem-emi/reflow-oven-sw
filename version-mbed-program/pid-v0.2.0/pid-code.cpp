@@ -26,6 +26,7 @@ BufferedSerial pc(USBTX, USBRX); // Serial communication
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // variables definition
+Timer t; 
 float temp;
 int variable = 1;
 int menu;
@@ -46,31 +47,43 @@ float PID_value;
 float PID_p;                          // proportional
 float PID_i;                          // integral
 float PID_d;                          // derivated
-PID controller(0.4, 550.0, 8.0, pwm_period); // variables PID controller
+PID controller(15.0, 550.0, 0.0, pwm_period); // variables PID controller
 float set_pid;
 int change_info;
+bool weld_profile; 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // characters to write lcd
 const char arrow[5] = {0x41, 0x22, 0x14, 0x08, 0x00}; // simbole: >
-void auto_control1(void);
 void auto_control(void);
 
 void extracted() { return; }
 
+void timer_process() {
+t.start();
+if ((t.read()) >= 75){
+    set_pid = 0;
+    controller.setSetPoint(set_pid);
+}
+}
+
 void Set_pid() {
-  if (temp_n >= 150) {
+  if ((temp_n >= 145) && (weld_profile = true)) {
     set_pid = 190;
     controller.setSetPoint(set_pid);
   }
-  if (temp_n >= 190) {
+  if ((temp_n >= 185) && (weld_profile = true)) {
     set_pid = 230;
     controller.setSetPoint(set_pid);
   }
+    if (temp_n >= 225){
+        weld_profile = false;
+        timer_process();  
+    }
 }
 
-int read_temperature(int a) {
+void weld_profile_sn_pb() {
   char *test = (char *)malloc(20);
   char *msg_pc = (char *)calloc(13, 1);
   char *buff = (char *)malloc(3);
@@ -83,7 +96,7 @@ int read_temperature(int a) {
   controller.setOutputLimits(0.00, 1.00);
   controller.setMode(1);
   controller.setSetPoint(150);
-  controller.setTunings(15, 0, 0);
+  controller.setTunings(15.0f, 550.0f, 0);
 
   // Init the data structures and NokiaLcd class
   LcdPins myPins;
@@ -204,7 +217,8 @@ int main() {
     myLcd.SetXY(0, 0);
     myLcd.DrawString(test);
     while (!pb1_left) {
+        weld_profile = true;  
     }
-    temp_function = read_temperature(1);
+    weld_profile_sn_pb();
   }
 }
