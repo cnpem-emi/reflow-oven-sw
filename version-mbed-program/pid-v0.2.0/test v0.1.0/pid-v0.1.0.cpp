@@ -41,7 +41,7 @@ float PID_value;
 float PID_p;                          // proportional
 float PID_i;                          // integral
 float PID_d;                          // derivated
-PID controller(40.0, 50.0, 0.4, pwm_period); // variables PID controller
+PID controller(3.77, 320.81, 0.0055, pwm_period); // variables PID controller
 float set_pid;
 int change_info;
 
@@ -67,7 +67,6 @@ int read_temperature(int a) {
   controller.setOutputLimits(0.00, 1.00);
   controller.setMode(1);
   controller.setSetPoint(230.0);
-  controller.setTunings(40.0, 50.0, 0.4);
   // Init the data structures and NokiaLcd class
   LcdPins myPins;
   myPins.sce = p8;

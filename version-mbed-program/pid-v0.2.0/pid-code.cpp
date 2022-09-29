@@ -26,6 +26,8 @@ BufferedSerial pc(USBTX, USBRX); // Serial communication
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // variables definition
+char *msg_ldc = (char *)calloc(20, 1);
+char *msg_pc = (char *)calloc(20, 1);
 float temp;
 int variable = 1;
 int menu;
@@ -103,10 +105,8 @@ void Set_temperature_perfil() {
 }
 
 void weld_profile_sn_pb() {
-  char *test = (char *)malloc(20);
-  char *msg_pc = (char *)calloc(13, 1);
   char *buff = (char *)malloc(3);
-  snprintf(test, 20, "test 2");
+  snprintf(msg_ldc, 20, "test 2");
   pc.set_blocking(false);
 
   // PID set paramters
@@ -145,15 +145,15 @@ void weld_profile_sn_pb() {
     pc.read(buff, 1);
 
     // Print temperature
-    snprintf(test, 20, "\nTemp.: %.2f\n", temp_n);
+    snprintf(msg_ldc, 20, "\nTemp.: %.2f\n", temp_n);
 
     if ((temp_d <= 5) && (temp_n != 0)) {
-      snprintf(test, 20, "Temp.: %.2f", temp_n);
+      snprintf(msg_ldc, 20, "Temp.: %.2f", temp_n);
       myLcd.SetXY(0, 0);
-      myLcd.DrawString(test);
-      snprintf(test, 20, "PWM: %.2f", pwm_value);
+      myLcd.DrawString(msg_ldc);
+      snprintf(msg_ldc, 20, "PWM: %.2f", pwm_value);
       myLcd.SetXY(0, 3);
-      myLcd.DrawString(test);
+      myLcd.DrawString(msg_ldc);
     }
 
     if (change_info == 1) {
@@ -198,13 +198,34 @@ void weld_profile_sn_pb() {
 void auto_control(void) { change_info = 1; }
 
 void option_menu() {
+  LcdPins myPins;
+  myPins.sce = p8;
+  myPins.rst = p9;
+  myPins.dc = p10;
+  myPins.mosi = p11;
+  myPins.miso = NC;
+  myPins.sclk = p13;
 
+  NokiaLcd myLcd(myPins);
+  myLcd.InitLcd();
+  myLcd.ClearLcdMem();
+  
+  snprintf(msg_ldc, 16, "Button 2 - Perform weld profile");
+  myLcd.DrawString(msg_ldc);
+  
+  while (1) {
+    pc.write("AQUI\n\r",10);
+    if (pb2_mid.read() == 1) {
+      while (pb2_mid.read()){}
+      weld_profile_sn_pb();
+    }
+    temp_n = max_spi.read_temp();
+    temp_o = temp_n;
+    wait_us(500000);
+    }
 }
 
 int main() {
-  char *test = (char *)malloc(16);
-  snprintf(test, 16, "test 2");
-
   // Init the data structures and NokiaLcd class
   LcdPins myPins;
   myPins.sce = p8;
@@ -230,15 +251,15 @@ int main() {
   temp_n = 0;
   temp_o = 0;
   change_info = 0;
+  weld_profile = true;
 
   while (1) {
-    snprintf(test, 16, "Waiting press button");
+    snprintf(msg_ldc, 16, "Waiting press button");
     myLcd.ClearLcdMem();
     myLcd.SetXY(0, 0);
-    myLcd.DrawString(test);
+    myLcd.DrawString(msg_ldc);
     while (!pb1_left) {
-      weld_profile = true;
     }
-    weld_profile_sn_pb();
+    option_menu();
   }
 }
