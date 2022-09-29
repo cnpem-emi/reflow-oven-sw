@@ -90,7 +90,7 @@ void Set_temperature_perfil() {
     b = 200;
     step = 4;
   }
-    if ((step == 4) && (weld_profile == true) && (t >= 54)) {
+    if ((step == 4) && (weld_profile == true) && (t >= 36)) {
     weld_profile = false;
     set_pid = 230.0;
     step = 5; 
