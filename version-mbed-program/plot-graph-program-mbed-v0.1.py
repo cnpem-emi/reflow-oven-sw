@@ -28,13 +28,14 @@ def update(x):
         
         ax.plot(column1_time[1:], column2_temp[1:], label = 'temp ')
         
-        if (not (column1_time[-1] == "time") and float(column1_time[-1]) >= read_duration):
+        if ((not (column1_time[-1] == "time") and float(column1_time[-1]) >= read_duration) or (column2_temp == 0.00)):
             ax.clear()
             name = path + file_name+'.csv'
             save_csv_file(column1_time, column2_temp)
             plot_graph(column1_time, column2_temp, name) 
             end()
-        save_csv_file(column1_time, column2_temp)
+        
+    save_csv_file(column1_time, column2_temp)
 
 def save_csv_file(column1_time, column2_temp):
     name = path + file_name+'.csv'
@@ -67,9 +68,12 @@ def MbedTemp():
     try:
         connection.reset_input_buffer()
         connection.write("5".encode('utf-8'))
-        value = connection.read(12).decode('utf8').replace('\x00','')
+        value = connection.read(13).decode('utf8').replace('\x00','')
         return (float(value.split(';')[0]), float(value.split(';')[1]))
     except Exception:
+        if (value == ("finished!")):
+            return (0.00,0.00)
+        print("Vish!!\n")
         return MbedTemp()
         
 
