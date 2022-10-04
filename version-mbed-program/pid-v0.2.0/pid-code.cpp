@@ -26,7 +26,7 @@ BufferedSerial pc(USBTX, USBRX); // Serial communication
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // variables definition
-char *msg_ldc = (char *)calloc(20, 1);
+char *msg_ldc = (char *)calloc(32, 1);
 char *msg_pc = (char *)calloc(20, 1);
 float temp;
 int variable = 1;
@@ -48,7 +48,7 @@ float PID_value;
 float PID_p;                                // proportional
 float PID_i;                                // integral
 float PID_d;                                // derivated
-PID controller(0.2, 50.0, 0.4, pwm_period); // variables PID controller
+PID controller(40.0, 50.0, 0.4, pwm_period); // variables PID controller
 float set_pid;
 int change_info;
 bool weld_profile;
@@ -61,7 +61,11 @@ float a;float b;float t;
 
 // characters to write lcd
 const char arrow[5] = {0x41, 0x22, 0x14, 0x08, 0x00}; // simbole: >
+
+//reference 
 void auto_control(void);
+void shutdown(void); 
+void option_menu(void); 
 
 void Set_temperature() {
   if (weld_profile == true){
@@ -76,28 +80,29 @@ void Set_temperature() {
 
 void Set_temperature_perfil() {
   if ((step == 1) && (weld_profile = true)) {
-    a = 12.5f / 15.0f;
+    a = 12.5f / 30.0f;
     b = 25.0f;
     t = 0;
     step = 2;
   }
-  if ((step == 2) && (weld_profile == true) && (t >= 90)) {
+  if ((step == 2) && (weld_profile == true) && (t >= 180)) {
     a = 5.0 / 9.0f;
     b = 150.0f;
     t = 0;
     step = 3;
   }
   if ((step == 3) && (weld_profile == true) && (t >= 54)) {
-    a = 3.0/6.0;
+    a = 3.0/9.0;
     b = 200;
     step = 4;
   }
-    if ((step == 4) && (weld_profile == true) && (t >= 36)) {
+    if ((step == 4) && (weld_profile == true) && (t >= 54)) {
     weld_profile = false;
     set_pid = 230.0;
     step = 5; 
   }
     if ((step == 5) && (weld_profile == false) && (t >= 36)) {
+    shutdown(); 
     }
   // if ((weld_profile == false) && (t >= 36)){}
     Set_temperature();
@@ -106,7 +111,6 @@ void Set_temperature_perfil() {
 
 void weld_profile_sn_pb() {
   char *buff = (char *)malloc(3);
-  snprintf(msg_ldc, 20, "test 2");
   pc.set_blocking(false);
 
   // PID set paramters
@@ -114,7 +118,7 @@ void weld_profile_sn_pb() {
   controller.setInputLimits(0.0, 360.0);
   controller.setOutputLimits(0.00, 1.00);
   controller.setMode(1);
-  controller.setTunings(0.2, 50.0, 0.4);
+  controller.setTunings(40.0, 50.0, 0.4);
 
   // Init the data structures and NokiaLcd class
   LcdPins myPins;
@@ -148,13 +152,23 @@ void weld_profile_sn_pb() {
     snprintf(msg_ldc, 20, "\nTemp.: %.2f\n", temp_n);
 
     if ((temp_d <= 5) && (temp_n != 0)) {
-      snprintf(msg_ldc, 20, "Temp.: %.2f", temp_n);
+      snprintf(msg_ldc, 20, "Temp.: %.2fC", temp_n);
       myLcd.SetXY(0, 0);
       myLcd.DrawString(msg_ldc);
+      snprintf(msg_ldc, 20, "Set: %.2fC", set_pid);
+      myLcd.SetXY(0, 1);
+      myLcd.DrawString(msg_ldc);    
       snprintf(msg_ldc, 20, "PWM: %.2f", pwm_value);
-      myLcd.SetXY(0, 3);
+      myLcd.SetXY(0, 2);
       myLcd.DrawString(msg_ldc);
+      snprintf(msg_ldc, 20, "B3 - Shutdown");
+      myLcd.SetXY(0, 4);      
+      myLcd.DrawString(msg_ldc);  
     }
+    if (pb3_right.read() == 1) {
+      while (pb3_right.read()){}
+      shutdown();
+    }    
 
     if (change_info == 1) {
       led2 = 1;
@@ -175,12 +189,12 @@ void weld_profile_sn_pb() {
         }
 
         if (buff[0] == '1') {
-          snprintf(msg_pc, 13, "\nTemp.: %03.2f", temp_n);
+          snprintf(msg_pc, 13, "\n\rTemp.: %03.2f", temp_n);
           pc.write(msg_pc, 13);
-          wait_us(10000);
-          snprintf(msg_pc, 12, "\nPWM: %01.2f", pwm_value);
+          wait_us(8000);
+          snprintf(msg_pc, 12, "\n\rPWM: %01.2f", pwm_value);
           pc.write(msg_pc, 12);
-          wait_us(10000);
+          wait_us(5000);
         }
         led2 = 0;
       }
@@ -197,6 +211,14 @@ void weld_profile_sn_pb() {
 
 void auto_control(void) { change_info = 1; }
 
+void shutdown() {
+  step = 0;
+  pwm_value = 0; 
+  set_pid = 0; 
+  pwm1.write(0); 
+  option_menu (); 
+}
+
 void option_menu() {
   LcdPins myPins;
   myPins.sce = p8;
@@ -210,17 +232,19 @@ void option_menu() {
   myLcd.InitLcd();
   myLcd.ClearLcdMem();
   
-  snprintf(msg_ldc, 16, "Button 2 - Perform weld profile");
+  snprintf(msg_ldc, 32, "B2 - Weld profile");
   myLcd.DrawString(msg_ldc);
   
   while (1) {
-    pc.write("AQUI\n\r",10);
     if (pb2_mid.read() == 1) {
       while (pb2_mid.read()){}
       weld_profile_sn_pb();
     }
     temp_n = max_spi.read_temp();
     temp_o = temp_n;
+    snprintf(msg_ldc, 20, "Temp.: %.2fC", temp_n);
+    myLcd.SetXY(0, 3);
+    myLcd.DrawString(msg_ldc);
     wait_us(500000);
     }
 }
@@ -259,6 +283,7 @@ int main() {
     myLcd.SetXY(0, 0);
     myLcd.DrawString(msg_ldc);
     while (!pb1_left) {
+       while (pb1_left.read()){}
     }
     option_menu();
   }
