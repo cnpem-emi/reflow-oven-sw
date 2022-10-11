@@ -35,7 +35,7 @@ def update(x):
             plot_graph(column1_time, column2_temp, name) 
             end()
         
-    save_csv_file(column1_time, column2_temp)
+        save_csv_file(column1_time, column2_temp)
 
 def save_csv_file(column1_time, column2_temp):
     name = path + file_name+'.csv'
@@ -71,8 +71,6 @@ def MbedTemp():
         value = connection.read(13).decode('utf8').replace('\x00','')
         return (float(value.split(';')[0]), float(value.split(';')[1]))
     except Exception:
-        if (value == ("finished!")):
-            return (0.00,0.00)
         print("Vish!!\n")
         return MbedTemp()
         
