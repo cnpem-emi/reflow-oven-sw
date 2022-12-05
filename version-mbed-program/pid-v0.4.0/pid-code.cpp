@@ -11,21 +11,23 @@
 AnalogIn pot1(p20); // pin in potentiometer
 PwmOut pwm1(p21);   // pin out PWM AC
 PwmOut pwm2(p22);   // pin out PWM paramter
-DigitalOut led1(LED1);
 DigitalOut led2(LED2);
 DigitalOut led4(LED4);
 PwmOut led3(LED3);
 InterruptIn pwm2_out(p23);       // pin in PWM paramter
-DigitalIn pb1_left(p26);         // push botton left
+DigitalIn pb1_left(p28);         // push botton left
 DigitalIn pb2_mid(p29);          // push botton
-DigitalIn pb3_right(p30);        // push botton
+DigitalIn pb3_right(p30);
+DigitalIn pb_emergency(p27);        // push botton
 SPI spi(p5, p6, p7);             // spi communication to temperature sensor
 max6675 max_spi(spi, p18);       // max6675 pin definitions
 BufferedSerial pc(USBTX, USBRX); // Serial communication
+Watchdog &watchdog = Watchdog::get_instance();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // variables definition
+char *buff = (char *)malloc(3);
 char *msg_ldc = (char *)calloc(32, 1);
 char *msg_pc = (char *)calloc(20, 1);
 float temp;
@@ -45,9 +47,9 @@ float temp_set;   // set temp variable to PID
 // controller variables
 const float pwm_period = 1.0f / 0.60f;
 float PID_value;
-float PID_p;                                // proportional
-float PID_i;                                // integral
-float PID_d;                                // derivated
+float PID_p;                                 // proportional
+float PID_i;                                 // integral
+float PID_d;                                 // derivated
 PID controller(40.0, 50.0, 0.4, pwm_period); // variables PID controller
 float set_pid;
 int change_info;
@@ -55,25 +57,27 @@ bool weld_profile;
 int step;
 
 // Function paramters
-float a;float b;float t;
+float a;
+float b;
+float t;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // characters to write lcd
 const char arrow[5] = {0x41, 0x22, 0x14, 0x08, 0x00}; // simbole: >
 
-//reference 
+// reference
 void auto_control(void);
-void shutdown(void); 
-void option_menu(void); 
+void shutdown(void);
+void option_menu(void);
 
 void Set_temperature() {
-  if (weld_profile == true){
-    set_pid = a * t/0.6 + b;
+  if (weld_profile == true) {
+    set_pid = a * t / 0.6 + b;
     t++;
   }
-  if (weld_profile == false){
-      t++;
+  if (weld_profile == false) {
+    t++;
   }
   controller.setSetPoint(set_pid);
 }
@@ -86,36 +90,41 @@ void Set_temperature_perfil() {
     step = 2;
   }
   if ((step == 2) && (weld_profile == true) && (t >= 180)) {
-    a = 5.0 / 9.0f;
+    a = 11.0 / 40.0f;
     b = 150.0f;
     t = 0;
     step = 3;
   }
-  if ((step == 3) && (weld_profile == true) && (t >= 54)) {
-    a = 3.0/9.0;
-    b = 200;
+  if ((step == 3) && (weld_profile == true) && (t >= 72)) {
+    a = 7.0 / 10.0;
+    b = 183;
+    t = 0;
     step = 4;
   }
-    if ((step == 4) && (weld_profile == true) && (t >= 54)) {
+  if ((step == 4) && (weld_profile == true) && (t >= 36)) {
     weld_profile = false;
-    set_pid = 230.0;
-    step = 5; 
+    t = 0;
+    set_pid = 225.0;
+    step = 5;
   }
-    if ((step == 5) && (weld_profile == false) && (t >= 36)) {
-    shutdown(); 
-    }
-  // if ((weld_profile == false) && (t >= 36)){}
-    Set_temperature();
-
+  if ((step == 5) && (weld_profile == false) && (t >= 18)) {
+    set_pid = 25.00;
+    t = 0;
+    step = 6;
+  }
+  if ((step == 6) && (weld_profile == false) && (t >= 180)) {
+    shutdown();
+  }
+  Set_temperature();
 }
 
 void weld_profile_sn_pb() {
-  char *buff = (char *)malloc(3);
+  watchdog.start(5000);
   pc.set_blocking(false);
 
   // PID set paramters
-  set_pid = 230;
-  controller.setInputLimits(0.0, 360.0);
+  set_pid = 0.00;
+  controller.setInputLimits(25.0, 235.0);
   controller.setOutputLimits(0.00, 1.00);
   controller.setMode(1);
   controller.setTunings(40.0, 50.0, 0.4);
@@ -157,18 +166,19 @@ void weld_profile_sn_pb() {
       myLcd.DrawString(msg_ldc);
       snprintf(msg_ldc, 20, "Set: %.2fC", set_pid);
       myLcd.SetXY(0, 1);
-      myLcd.DrawString(msg_ldc);    
+      myLcd.DrawString(msg_ldc);
       snprintf(msg_ldc, 20, "PWM: %.2f", pwm_value);
       myLcd.SetXY(0, 2);
       myLcd.DrawString(msg_ldc);
       snprintf(msg_ldc, 20, "B3 - Shutdown");
-      myLcd.SetXY(0, 4);      
-      myLcd.DrawString(msg_ldc);  
+      myLcd.SetXY(0, 4);
+      myLcd.DrawString(msg_ldc);
     }
     if (pb3_right.read() == 1) {
-      while (pb3_right.read()){}
+      while (pb3_right.read()) {
+      }
       shutdown();
-    }    
+    }
 
     if (change_info == 1) {
       led2 = 1;
@@ -202,6 +212,7 @@ void weld_profile_sn_pb() {
       change_info = 0;
     }
     pc.sync();
+    watchdog.kick();
   }
   // for(int j = 0; j < 6;j++){
   //     myLcd.SendDrawData(arrow[j]);
@@ -212,11 +223,15 @@ void weld_profile_sn_pb() {
 void auto_control(void) { change_info = 1; }
 
 void shutdown() {
+  watchdog.stop(); 
+  if (buff[0] == '5') {
+    pc.write("0.00;0.00", 130);
+  }
   step = 0;
-  pwm_value = 0; 
-  set_pid = 0; 
-  pwm1.write(0); 
-  option_menu (); 
+  pwm_value = 0;
+  set_pid = 0;
+  pwm1.write(0);
+  option_menu();
 }
 
 void option_menu() {
@@ -231,13 +246,14 @@ void option_menu() {
   NokiaLcd myLcd(myPins);
   myLcd.InitLcd();
   myLcd.ClearLcdMem();
-  
+
   snprintf(msg_ldc, 32, "B2 - Weld profile");
   myLcd.DrawString(msg_ldc);
-  
+
   while (1) {
     if (pb2_mid.read() == 1) {
-      while (pb2_mid.read()){}
+      while (pb2_mid.read()) {
+      }
       weld_profile_sn_pb();
     }
     temp_n = max_spi.read_temp();
@@ -246,7 +262,7 @@ void option_menu() {
     myLcd.SetXY(0, 3);
     myLcd.DrawString(msg_ldc);
     wait_us(500000);
-    }
+  }
 }
 
 int main() {
@@ -278,12 +294,13 @@ int main() {
   weld_profile = true;
 
   while (1) {
-    snprintf(msg_ldc, 16, "Waiting press button");
+    pc.write("1",1);
+    snprintf(msg_ldc, 16, "B1-To start");
     myLcd.ClearLcdMem();
     myLcd.SetXY(0, 0);
     myLcd.DrawString(msg_ldc);
-    while (!pb1_left) {
-       while (pb1_left.read()){}
+    while (pb1_left.read() == 0) {
+      pc.write("2",1);
     }
     option_menu();
   }
