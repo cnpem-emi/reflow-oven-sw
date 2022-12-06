@@ -41,7 +41,6 @@ float temp_o;     // old aquisition temperature
 float temp_d;     // temperature variation
 float temp_error; // variable to PID
 float temp_set;   // set temp variable to PID
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // controller variables
@@ -117,6 +116,91 @@ void Set_temperature_perfil() {
   }
   Set_temperature();
 }
+
+void manual_profile(){
+  watchdog.start(5000);
+  pc.set_blocking(false);
+
+  LcdPins myPins;
+  myPins.sce = p8;
+  myPins.rst = p9;
+  myPins.dc = p10;
+  myPins.mosi = p11;
+  myPins.miso = NC;
+  myPins.sclk = p13;
+
+  set_pid = 0.00;
+  controller.setInputLimits(25.0, 235.0);
+  controller.setOutputLimits(0.00, 1.00);
+  controller.setMode(1);
+  controller.setTunings(40.0, 50.0, 0.4);
+
+  NokiaLcd myLcd(myPins);
+  myLcd.InitLcd();
+  myLcd.ClearLcdMem();
+
+  pwm2_out.fall(auto_control);
+
+  while (1){
+    pc.read(buff, 1);
+      float set_pid_manual =  pot1.read() * 235; 
+      if ((temp_d <= 5) && (temp_n != 0)) {
+      myLcd.ClearLcdMem();
+      snprintf(msg_ldc, 20, "Temp.: %.2fC", temp_n);
+      myLcd.SetXY(0, 0);
+      myLcd.DrawString(msg_ldc);
+      snprintf(msg_ldc, 20, "Set: %.2fC", set_pid_manual);
+      myLcd.SetXY(0, 1);
+      myLcd.DrawString(msg_ldc);
+      snprintf(msg_ldc, 20, "PWM: %.2f", pwm_value);
+      myLcd.SetXY(0, 2);
+      myLcd.DrawString(msg_ldc);
+      snprintf(msg_ldc, 20, "B3 - Shutdown");
+      myLcd.SetXY(0, 4);
+      myLcd.DrawString(msg_ldc);
+    }
+    if (pb3_right.read() == 1) {
+      while (pb3_right.read()) {
+      }
+      shutdown();
+    }
+
+    if (change_info == 1) {
+      led2 = 1;
+      temp_n = max_spi.read_temp();
+      temp_d = temp_n - temp_o;
+      if (temp_d < 0) {
+        temp_d = -temp_d;
+      }
+      if ((temp_d <= 5) && (temp_n != 0)) {
+        controller.setSetPoint(set_pid_manual);
+        controller.setProcessValue(temp_n);
+        pwm_value = controller.compute();
+        pwm1.write(pwm_value);
+        if (buff[0] == '5') {
+          snprintf(msg_pc, 13, "%03.2f;%01.2f", temp_n, pwm_value);
+          wait_us(10000);
+          pc.write(msg_pc, 13);
+        }
+
+        if (buff[0] == '1') {
+          snprintf(msg_pc, 13, "\n\rTemp.: %03.2f", temp_n);
+          pc.write(msg_pc, 13);
+          wait_us(8000);
+          snprintf(msg_pc, 12, "\n\rPWM: %01.2f", pwm_value);
+          pc.write(msg_pc, 12);
+          wait_us(5000);
+        }
+        led2 = 0;
+      }
+      temp_o = temp_n;
+      change_info = 0;
+    }
+    pc.sync();
+    watchdog.kick();
+  }
+}
+
 
 void weld_profile_sn_pb() {
   watchdog.start(5000);
@@ -235,6 +319,7 @@ void shutdown() {
 }
 
 void option_menu() {
+  pc.write("1", 1);
   LcdPins myPins;
   myPins.sce = p8;
   myPins.rst = p9;
@@ -243,14 +328,24 @@ void option_menu() {
   myPins.miso = NC;
   myPins.sclk = p13;
 
+
   NokiaLcd myLcd(myPins);
   myLcd.InitLcd();
   myLcd.ClearLcdMem();
 
-  snprintf(msg_ldc, 32, "B2 - Weld profile");
+  myLcd.SetXY(0, 0);
+  snprintf(msg_ldc, 32, "B2 - Weld prof");
+  myLcd.DrawString(msg_ldc);
+  myLcd.SetXY(0, 3);
+  snprintf(msg_ldc, 32, "B3 - Manual");
   myLcd.DrawString(msg_ldc);
 
   while (1) {
+    if (pb3_right.read() == 1) {
+      while (pb3_right.read()) {
+      }
+      manual_profile();
+    }
     if (pb2_mid.read() == 1) {
       while (pb2_mid.read()) {
       }
@@ -259,7 +354,7 @@ void option_menu() {
     temp_n = max_spi.read_temp();
     temp_o = temp_n;
     snprintf(msg_ldc, 20, "Temp.: %.2fC", temp_n);
-    myLcd.SetXY(0, 3);
+    myLcd.SetXY(0, 5);
     myLcd.DrawString(msg_ldc);
     wait_us(500000);
   }
