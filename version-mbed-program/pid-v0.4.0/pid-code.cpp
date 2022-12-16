@@ -142,6 +142,11 @@ void manual_profile(){
   pwm2_out.fall(auto_control);
 
   while (1){
+    if (pb_emergency.read() == 0) {
+      watchdog.start(100);
+      while (pb_emergency.read()) {
+      }
+    }
     pc.read(buff, 1);
       float set_pid_manual =  pot1.read() * 235; 
       if ((temp_d <= 5) && (temp_n != 0)) {
@@ -238,6 +243,11 @@ void weld_profile_sn_pb() {
 
   // Draw a test pattern on the LCD and stall for 15 seconds
   while (1) {
+    if (pb_emergency.read() == 0) {
+      watchdog.start(100);
+      while (pb_emergency.read()) {
+      }
+    }
     // Read mensage of pc serial command
     pc.read(buff, 1);
 
